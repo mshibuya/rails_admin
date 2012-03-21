@@ -3,5 +3,5 @@ class Tag
 
   field :name, :type => String
 
-  references_and_referenced_in_many :articles
+  has_and_belongs_to_many :articles
 end
