@@ -35,13 +35,8 @@ module RailsAdmin
         scope = scope.where(query_conditions(options[:query])) if options[:query]
         scope = scope.where(filter_conditions(options[:filters])) if options[:filters]
         scope = scope.page(options[:page]).per(options[:per]) if options[:page] && options[:per]
-        scope = if options[:sort] && options[:sort_reverse]
-          scope.desc(options[:sort])
-        elsif options[:sort]
-          scope.asc(options[:sort])
-        else
-          scope
-        end
+        scope = sort_by(options, scope) if options[:sort]
+        scope
       end
       
       def count(options = {},scope=nil)
@@ -53,7 +48,7 @@ module RailsAdmin
       end
 
       def primary_key
-        :_id
+        '_id'
       end
 
       def associations
@@ -70,7 +65,7 @@ module RailsAdmin
             :polymorphic => association_polymorphic_lookup(association),
             :inverse_of => association_inverse_of_lookup(association),
             :read_only => nil,
-            :nested_form => nil
+            :nested_form => association_nested_attributes_options_lookup(association)
           }
         end
       end
@@ -102,6 +97,7 @@ module RailsAdmin
                 "Integer"        => { :type => :integer, :length => nil },
                 "Time"           => { :type => :datetime, :length => nil },
                 "Object"         => { :type => :bson_object_id, :length => nil },
+                "Symbol"         => { :type => :string, :length => nil },
               }[field.type.to_s] or raise "Need to map field #{field.type.to_s} for field name #{name} in #{model.inspect}"
             end
 
@@ -122,6 +118,14 @@ module RailsAdmin
         # Mongoid Array and Hash type columns are mapped to RA serialized type
         # through type detection in self#properties.
         []
+      end
+
+      def encoding
+        'UTF-8'
+      end
+
+      def embedded?
+        @embedded ||= !!model.associations.values.find{|a| a.macro.to_sym == :embedded_in }
       end
 
       private
@@ -243,7 +247,7 @@ module RailsAdmin
       end
 
       def association_model_proc_lookup(association)
-        if association.polymorphic? && association.macro == :referenced_in
+        if association.polymorphic? && [:referenced_in, :belongs_to].include?(association.macro)
           RailsAdmin::AbstractModel.polymorphic_parents(:mongoid, association.name) || []
         else
           association.klass
@@ -251,9 +255,13 @@ module RailsAdmin
       end
 
       def association_foreign_type_lookup(association)
-        if association.polymorphic? && association.macro == :referenced_in
+        if association.polymorphic? && [:referenced_in, :belongs_to].include?(association.macro)
           association.inverse_type.try(:to_sym) || :"#{association.name}_type"
         end
+      end
+
+      def association_nested_attributes_options_lookup(association)
+        model.nested_attributes_options.try { |o| o[association.name.to_sym] }
       end
 
       def association_as_lookup(association)
@@ -261,7 +269,7 @@ module RailsAdmin
       end
 
       def association_polymorphic_lookup(association)
-        !!association.polymorphic? && association.macro == :referenced_in
+        !!association.polymorphic? && [:referenced_in, :belongs_to].include?(association.macro)
       end
 
       def association_primary_key_lookup(association)
@@ -278,13 +286,13 @@ module RailsAdmin
       
       def association_type_lookup(macro)
         case macro.to_sym
-        when :referenced_in, :embedded_in
+        when :belongs_to, :referenced_in, :embedded_in
           :belongs_to
-        when :references_one, :embeds_one
+        when :has_one, :references_one, :embeds_one
           :has_one
-        when :references_many, :embeds_many
+        when :has_many, :references_many, :embeds_many
           :has_many
-        when :references_and_referenced_in_many
+        when :has_and_belongs_to_many, :references_and_referenced_in_many
           :has_and_belongs_to_many
         else
           raise "Unknown association type: #{macro.inspect}"
@@ -326,6 +334,20 @@ module RailsAdmin
           [{ target_association[:foreign_key].to_s => { '$in' => model.where('$or' => conditions).all.map{|r| r.send(target_association[:primary_key_proc].call)} }}]
         when :has_many
           [{ target_association[:primary_key_proc].call.to_s => { '$in' => model.where('$or' => conditions).all.map{|r| r.send(target_association[:foreign_key])} }}]
+        end
+      end
+
+      def sort_by(options, scope)
+        return scope unless options[:sort]
+        field_name, collection_name = options[:sort].to_s.split('.').reverse
+        if collection_name && collection_name != table_name
+          # sorting by associated model column is not supported, so just ignore
+          return scope
+        end
+        if options[:sort_reverse]
+          scope.desc field_name
+        else
+          scope.asc field_name
         end
       end
     end

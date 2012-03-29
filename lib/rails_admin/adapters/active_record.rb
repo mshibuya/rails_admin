@@ -93,6 +93,14 @@ module RailsAdmin
         model.serialized_attributes.keys
       end
 
+      def encoding
+        Rails.configuration.database_configuration[Rails.env]['encoding']
+      end
+
+      def embedded?
+        false
+      end
+
       private
 
       def query_conditions(query, fields = config.list.fields.select(&:queryable?))

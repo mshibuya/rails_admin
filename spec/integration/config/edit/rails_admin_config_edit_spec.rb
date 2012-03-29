@@ -264,15 +264,23 @@ describe "RailsAdmin Config DSL Edit Section" do
             label "Belong's to associations"
             field :division
           end
+          group :basic_info do
+            field :manager
+          end
         end
       end
       visit new_path(:model_name => "team")
       should have_selector("legend", :text => "Basic info")
+      all("legend", :text => "Basic info").tap do |nodes|
+        nodes.count.should == 2
+        nodes.first.visible?.should be_false
+        nodes.last.visible?.should be_true
+      end
       should have_selector("legend", :text => "Belong's to associations")
       should have_selector("label", :text => "Name")
       should have_selector("label", :text => "Logo url")
       should have_selector("label", :text => "Division")
-      should have_selector(".control-group", :count => 3)
+      should have_selector(".control-group", :count => 4)
     end
 
     it "should have accessor for its fields by type" do
@@ -766,9 +774,11 @@ describe "RailsAdmin Config DSL Edit Section" do
   end
 
   describe 'nested form' do
+    before do
+      RailsAdmin::Config.excluded_models = [RelTest]
+    end
 
     it 'should work' do
-      RailsAdmin::Config.excluded_models = [RelTest]
       visit new_path(:model_name => "field_test")
       fill_in "field_test_comment_attributes_content", :with => 'nested comment content'
       click_button "Save"
@@ -785,7 +795,6 @@ describe "RailsAdmin Config DSL Edit Section" do
     end
 
     it 'should set bindings[:object] to nested object' do
-      RailsAdmin::Config.excluded_models = [RelTest]
       RailsAdmin.config(NestedFieldTest) do
         nested do
           field :title do
@@ -802,8 +811,6 @@ describe "RailsAdmin Config DSL Edit Section" do
     end
 
     it 'should be desactivable' do
-      RailsAdmin::Config.excluded_models = [RelTest]
-
       visit new_path(:model_name => "field_test")
       should have_selector('.add_nested_fields')
       RailsAdmin.config(FieldTest) do
@@ -813,6 +820,41 @@ describe "RailsAdmin Config DSL Edit Section" do
       end
       visit new_path(:model_name => "field_test")
       should have_no_selector('.add_nested_fields')
+    end
+
+    it 'should work with Mongoid' do
+      @record = Article.create :notes => [{:subject => 'nested'}]
+      visit edit_path(:model_name => "article", :id => @record.id)
+      fill_in "article_notes_attributes_0_subject", :with => 'note subject 1 edited'
+      click_button "Save"
+      @record.reload
+      @record.notes[0].subject.should == 'note subject 1 edited'
+    end
+
+    describe "with nested_attributes_options given" do
+      before do
+        FieldTest.nested_attributes_options.stub(:[]).with(:comment).
+          and_return({:allow_destroy=>true, :update_only=>false})
+      end
+
+      it 'should not show add button when :update_only is true' do
+        FieldTest.nested_attributes_options.stub(:[]).with(:nested_field_tests).
+          and_return({:allow_destroy=>true, :update_only=>true})
+        visit new_path(:model_name => "field_test")
+        should have_selector('.toggler')
+        should_not have_selector('.add_nested_fields')
+      end
+
+      it 'should not show destroy button except for newly created when :allow_destroy is false' do
+        @record = FieldTest.create
+        @record.nested_field_tests << NestedFieldTest.create!(:title => 'nested title 1')
+        FieldTest.nested_attributes_options.stub(:[]).with(:nested_field_tests).
+          and_return({:allow_destroy=>false, :update_only=>false})
+        visit edit_path(:model_name => "field_test", :id => @record.id)
+        find('#field_test_nested_field_tests_attributes_0_title').value.should == 'nested title 1'
+        should_not have_selector('form .remove_nested_fields')
+        should have_selector('.fields_blueprint .remove_nested_fields')
+      end
     end
   end
 
