@@ -6,6 +6,7 @@ class MongoidFieldTest
   field :subject, :type => String
   field :description, :type => String
   field :short_text, :type => String
+  field :symbol, :type => Symbol
   field :array_field, :type => Array
   field :big_decimal_field, :type => BigDecimal
   field :boolean_field, :type => Boolean

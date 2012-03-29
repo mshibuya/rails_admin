@@ -97,6 +97,7 @@ module RailsAdmin
                 "Integer"        => { :type => :integer, :length => nil },
                 "Time"           => { :type => :datetime, :length => nil },
                 "Object"         => { :type => :bson_object_id, :length => nil },
+                "Symbol"         => { :type => :string, :length => nil },
               }[field.type.to_s] or raise "Need to map field #{field.type.to_s} for field name #{name} in #{model.inspect}"
             end
 
