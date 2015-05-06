@@ -151,3 +151,15 @@
 .icon-fullscreen         { @extend .fa-arrows-alt !optional; }
 
 .icon-white              { color:white; }
+
+// glyphicons compatibility, used by wysihtml5
+.glyphicon {
+  @extend .fa !optional;
+}
+.glyphicon-font         { @extend .fa-font !optional; }
+.glyphicon-list         { @extend .fa-list !optional; }
+.glyphicon-th-list      { @extend .fa-th-list !optional; }
+.glyphicon-indent-left  { @extend .fa-outdent !optional; }
+.glyphicon-indent-right { @extend .fa-indent !optional; }
+.glyphicon-share        { @extend .fa-link !optional; }
+.glyphicon-picture      { @extend .fa-picture-o !optional; }

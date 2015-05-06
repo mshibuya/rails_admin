@@ -901,6 +901,43 @@ describe 'RailsAdmin Config DSL Edit Section', type: :request do
     end
   end
 
+  describe 'Bootsy Support' do
+    before do
+      RailsAdmin::FormBuilder.class_eval do
+        alias_method :bootsy_area, :text_area
+      end
+    end
+    after do
+      RailsAdmin::FormBuilder.class_eval do
+        undef bootsy_area
+      end
+    end
+
+    it 'adds Javascript to enable Bootsy' do
+      RailsAdmin.config Draft do
+        edit do
+          field :notes, :bootsy
+        end
+      end
+      visit new_path(model_name: 'draft')
+      is_expected.to have_selector('textarea#draft_notes[data-richtext="bootsy"]')
+    end
+
+    it 'should include custom Bootsy configuration' do
+      RailsAdmin.config Draft do
+        edit do
+          field :notes, :bootsy do
+            css_location 'stub_css.css'
+            js_location 'stub_js.js'
+          end
+        end
+      end
+
+      visit new_path(model_name: 'draft')
+      is_expected.to have_selector("textarea#draft_notes[data-richtext=\"bootsy\"][data-options]")
+    end
+  end
+
   describe 'Froala Support' do
     it 'adds Javascript to enable Froala' do
       RailsAdmin.config Draft do

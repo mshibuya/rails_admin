@@ -218,6 +218,18 @@ $(document).on 'rails_admin.dom_ready', (e, content) ->
       else
         goBootstrapWysihtml5s(@array, config_options)
 
+    # bootsy
+
+    array = content.find('[data-richtext=bootsy]').not('[data-bootsy-initialized]')
+    if array.length
+      @array = array
+      options = $(array[0]).data('options')
+      if not window.Bootsy
+        $('head').append('<link href="' + options['csspath'] + '" rel="stylesheet" media="all" type="text\/css">')
+        $.getScript options['jspath']
+      else
+        Bootsy.init()
+
     # froala_wysiwyg
 
     goFroalaWysiwygs = (array) =>
